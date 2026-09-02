@@ -19,7 +19,10 @@ class SandboxResult:
 
 class LocalSandbox:
     def __init__(self, workdir: Path, timeout_seconds: int = 300):
-        self.workdir = Path(workdir)
+        workdir = Path(workdir)
+        if not workdir.is_dir():
+            raise NotADirectoryError(f"sandbox workdir does not exist: {workdir}")
+        self.workdir = workdir
         self.timeout_seconds = timeout_seconds
 
     def run(self, argv: list[str]) -> SandboxResult:

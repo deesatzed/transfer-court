@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from transfer_court.sandbox import LocalSandbox
 
 
@@ -27,3 +29,9 @@ def test_local_sandbox_captures_missing_command_without_raising(tmp_path):
     result = sandbox.run(["this-command-does-not-exist-anywhere"])
     assert result.returncode != 0
     assert "this-command-does-not-exist-anywhere" in result.stderr
+
+
+def test_local_sandbox_rejects_nonexistent_workdir_at_construction(tmp_path):
+    missing = tmp_path / "does-not-exist"
+    with pytest.raises(NotADirectoryError):
+        LocalSandbox(workdir=missing)
