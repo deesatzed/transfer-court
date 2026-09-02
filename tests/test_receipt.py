@@ -34,3 +34,17 @@ def test_write_receipt_refuses_to_overwrite(tmp_path):
     write_receipt(_sample_receipt_data(), receipts_dir=tmp_path)
     with pytest.raises(ReceiptExistsError):
         write_receipt(_sample_receipt_data(), receipts_dir=tmp_path)
+
+
+def test_write_receipt_rejects_missing_required_field(tmp_path):
+    data = _sample_receipt_data()
+    del data["source_commit"]
+    with pytest.raises(ValueError, match="source_commit"):
+        write_receipt(data, receipts_dir=tmp_path)
+
+
+def test_write_receipt_accepts_plain_string_verdict(tmp_path):
+    data = _sample_receipt_data()
+    data["verdict"] = "PASS"  # not a Verdict enum member
+    path = write_receipt(data, receipts_dir=tmp_path)
+    assert json.loads(path.read_text())["verdict"] == "PASS"
