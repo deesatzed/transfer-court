@@ -44,3 +44,12 @@ def test_run_paired_trial_marks_invalid_on_sandbox_failure():
     result = run_paired_trial(_docket_item(), builder=builder)
     assert result.valid is False
     assert "arm A" in result.invalid_reason
+
+
+def test_run_paired_trial_skips_arm_b_when_arm_a_fails():
+    # Arm B represents a real, potentially minutes-long sandboxed attempt —
+    # it should never run once the trial is already invalid from arm A.
+    builder = MagicMock(return_value=SandboxResult(returncode=1, stdout="", stderr="crashed"))
+    result = run_paired_trial(_docket_item(), builder=builder)
+    assert builder.call_count == 1
+    assert result.arm_b_output == ""
