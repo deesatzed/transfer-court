@@ -3,7 +3,9 @@ from pathlib import Path
 
 import pytest
 
-from transfer_court.docket import DocketItem, freeze_repo_commit
+from pydantic import ValidationError
+
+from transfer_court.docket import DocketItem, FreezeError, freeze_repo_commit
 from transfer_court.panel import Panel
 
 
@@ -54,5 +56,27 @@ def test_docket_item_requires_frozen_commits():
             source_commit="",
             target_repo="/tmp/nowhere2",
             target_commit="abc123",
+            obligation="the target does X",
+        )
+
+
+def test_freeze_repo_commit_raises_freeze_error_on_non_git_directory(tmp_path):
+    not_a_repo = tmp_path / "not_a_repo"
+    not_a_repo.mkdir()
+
+    with pytest.raises(FreezeError, match="not a valid git repository"):
+        freeze_repo_commit(not_a_repo)
+
+
+def test_docket_item_rejects_whitespace_only_commit_hash():
+    # 7+ whitespace chars pass Field(min_length=7) but must still be caught
+    # by the not_blank validator.
+    with pytest.raises(ValidationError, match="must not be blank"):
+        DocketItem(
+            panel=_minimal_panel(),
+            source_repo="/tmp/nowhere",
+            source_commit="       ",
+            target_repo="/tmp/nowhere2",
+            target_commit="abc1234",
             obligation="the target does X",
         )
