@@ -55,9 +55,18 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "pytest-cov>=5.0"]
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["transfer_court"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 ```
+
+**Correction (post-Task-1 code review):** the original snippet above omitted `[build-system]`, which left `transfer_court` unpackaged — importable only by accident (repo-root cwd shadowing `sys.path`), not as a real installed package. This would have broken every subsequent task's dotted imports (`from transfer_court.panel import Panel`, etc.) the moment tests ran from a different working directory. Fixed directly in `pyproject.toml` and reflected here so the snippet stays accurate.
 
 **Step 2: Write .gitignore**
 
