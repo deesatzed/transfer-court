@@ -25,3 +25,11 @@ def test_fail_on_safety_regression_even_if_b_better():
 def test_inconclusive_when_trial_invalid():
     v = decide_verdict(score_a=0, score_b=0, safety_regression=False, trial_valid=False)
     assert v == Verdict.INCONCLUSIVE
+
+
+def test_inconclusive_even_when_trial_invalid_and_safety_regression_true():
+    # trial_valid is checked first — an invalid trial is INCONCLUSIVE even
+    # if a safety regression was also flagged; a run that can't be trusted
+    # can't be trusted to report safety regression correctly either.
+    v = decide_verdict(score_a=1, score_b=5, safety_regression=True, trial_valid=False)
+    assert v == Verdict.INCONCLUSIVE

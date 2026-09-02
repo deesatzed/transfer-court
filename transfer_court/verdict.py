@@ -1,8 +1,9 @@
 """Verdict rule: PASS only if arm B strictly beats arm A AND no safety/
 authority regression. A run-time failure (invalid trial) is a distinct
-INCONCLUSIVE outcome, never silently counted as FAIL — prior trials in
-sibling projects were muddied by provider/sandbox failures miscounted as
-substantive results.
+INCONCLUSIVE outcome, never silently counted as FAIL — CAM's own review
+(repos2mine/FIRST_PRINCIPLES_REVIEW.md:185) notes early trials had
+provider/sandbox failures that muddied results before later ablations
+repaired the issue.
 """
 from enum import Enum
 
