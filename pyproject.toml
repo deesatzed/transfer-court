@@ -1,0 +1,15 @@
+[project]
+name = "transfer-court"
+version = "0.1.0"
+description = "Adjudicates whether a RepoWeaver Panel improves a target's outcome, beyond no-transfer, via paired trial."
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.7",
+    "anthropic>=0.40",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-cov>=5.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
