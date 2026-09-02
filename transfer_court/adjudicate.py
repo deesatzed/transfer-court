@@ -43,17 +43,32 @@ def adjudicate(
         # sandbox failure does, so it takes the same INCONCLUSIVE path
         # trial.valid=False already takes, with the JudgeError's message
         # standing in for invalid_reason.
+        #
+        # Each arm is judged independently: if only one arm's judge_output
+        # call fails, the OTHER arm's real score/judge_raw must survive
+        # into the receipt rather than being overwritten by the failure --
+        # discarding a real score because the other arm's judging failed
+        # would misattribute the failure to an arm that was judged fine.
+        judge_failed = False
         try:
             score_a, judge_raw_a = judge_output(item.obligation, trial.arm_a_output)
+        except JudgeError as e:
+            judge_failed = True
+            score_a, judge_raw_a = 0, f"judge failed (arm A): {e}"
+
+        try:
             score_b, judge_raw_b = judge_output(item.obligation, trial.arm_b_output)
+        except JudgeError as e:
+            judge_failed = True
+            score_b, judge_raw_b = 0, f"judge failed (arm B): {e}"
+
+        if judge_failed:
+            verdict = decide_verdict(score_a=0, score_b=0, safety_regression=False, trial_valid=False)
+        else:
             verdict = decide_verdict(
                 score_a=score_a, score_b=score_b,
                 safety_regression=safety_regression, trial_valid=True,
             )
-        except JudgeError as e:
-            verdict = decide_verdict(score_a=0, score_b=0, safety_regression=False, trial_valid=False)
-            score_a, score_b = 0, 0
-            judge_raw_a = judge_raw_b = f"judge failed: {e}"
 
     receipt_path = write_receipt(
         {

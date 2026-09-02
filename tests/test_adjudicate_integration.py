@@ -76,3 +76,32 @@ def test_adjudicate_handles_judge_error_as_inconclusive(mock_judge, tmp_path):
     receipt = json.loads(receipt_path.read_text())
     assert "boom" in receipt["judge_raw_a"]
     assert "boom" in receipt["judge_raw_b"]
+
+
+@patch("transfer_court.adjudicate.judge_output")
+def test_adjudicate_preserves_real_score_when_only_one_arm_judge_fails(mock_judge, tmp_path):
+    # Arm A judges successfully; only arm B's judge_output call fails.
+    # Arm A's real score/judge_raw must survive into the receipt rather
+    # than being overwritten by arm B's failure.
+    mock_judge.side_effect = [
+        (4, "arm A judged fine, score 4"),
+        JudgeError("arm B boom"),
+    ]
+
+    def fake_builder(docket_item, panel):
+        if panel is None:
+            return SandboxResult(returncode=0, stdout="19.999", stderr="")
+        return SandboxResult(returncode=0, stdout="$20.00", stderr="")
+
+    item = _synthetic_docket_item()
+    result = adjudicate(
+        item, docket_id="synthetic-003", builder=fake_builder,
+        safety_regression=False, receipts_dir=tmp_path,
+    )
+
+    assert result.verdict == Verdict.INCONCLUSIVE
+
+    receipt = json.loads((tmp_path / "synthetic-003.json").read_text())
+    assert receipt["judge_raw_a"] == "arm A judged fine, score 4"
+    assert "arm B boom" in receipt["judge_raw_b"]
+    assert "arm A" not in receipt["judge_raw_b"]
