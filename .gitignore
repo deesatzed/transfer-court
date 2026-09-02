@@ -6,3 +6,4 @@ runs/
 receipts/
 .pytest_cache/
 *.egg-info/
+.coverage
