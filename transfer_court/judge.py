@@ -18,11 +18,32 @@ import anthropic
 # caller/user is the source of truth for which model to run the judge on.
 JUDGE_MODEL = os.environ.get("TRANSFER_COURT_JUDGE_MODEL", "claude-sonnet-5")
 
+# Only these are worth retrying: transient network/service conditions. A 4xx
+# (bad model ID, auth failure, bad request) will fail identically on every
+# retry and should surface immediately, not burn 3 attempts to reach the
+# same fabricated score-0 result decide_verdict can't tell apart from a
+# genuinely bad output (see JudgeError below).
+_RETRYABLE_EXCEPTIONS = (
+    anthropic.APIConnectionError,
+    anthropic.RateLimitError,
+    anthropic.InternalServerError,
+)
+
+
+class JudgeError(RuntimeError):
+    """Raised when the judge cannot produce a score at all (retries
+    exhausted, or a non-retryable API/response-shape error). A judge failure
+    must never silently collapse to score 0 — decide_verdict has no way to
+    distinguish a fabricated 0 from a real one, and a broken judge would
+    otherwise make every trial FAIL without any visible signal that the
+    judge itself, not the Panel, is what's broken."""
+
 
 def judge_output(obligation: str, output: str) -> tuple[int, str]:
     """Score `output` 0-5 against `obligation`, blind to arm/Panel identity.
 
-    Returns (score, raw_judge_response).
+    Returns (score, raw_judge_response) on success.
+    Raises JudgeError if the judge cannot produce a score.
     """
     if not output or not output.strip():
         return 0, "(empty output — nothing to judge)"
@@ -44,6 +65,7 @@ def judge_output(obligation: str, output: str) -> tuple[int, str]:
     )
 
     client = anthropic.Anthropic()
+    last_error: Exception | None = None
     for attempt in range(3):
         try:
             resp = client.messages.create(
@@ -58,11 +80,18 @@ def judge_output(obligation: str, output: str) -> tuple[int, str]:
             )
             raw = resp.content[0].text
             return extract_score(raw), raw
+        except _RETRYABLE_EXCEPTIONS as e:
+            last_error = e
+            if attempt < 2:
+                time.sleep(2 ** attempt)
         except Exception as e:
-            if attempt == 2:
-                return 0, f"(judge error after 3 attempts: {str(e)[:200]})"
-            time.sleep(2 ** attempt)
-    return 0, "(judge failed)"
+            # Not retryable: a bad model ID, auth failure, or an unexpected
+            # response shape (e.g. resp.content[0] missing/not text) will
+            # fail the same way every time. Surface it immediately instead
+            # of masking it as three identical transient-looking retries.
+            raise JudgeError(f"judge call failed: {e}") from e
+
+    raise JudgeError(f"judge failed after 3 attempts: {last_error}")
 
 
 def extract_score(text: str) -> int:
